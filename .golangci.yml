@@ -1,0 +1,63 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - unconvert
+    - revive
+  disable:
+    - unparam  # Too noisy for our codebase
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: false  # Allow ignoring errors with blank identifier in non-critical paths
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+  misspell:
+    locale: US
+
+issues:
+  exclude-rules:
+    # Ignore error checks in test files (test assertions handle errors)
+    - path: _test\.go
+      linters:
+        - errcheck
+        - revive
+    # Ignore shadow in test files
+    - path: _test\.go
+      text: "shadows"
+  max-issues-per-linter: 0
+  max-same-issues: 0

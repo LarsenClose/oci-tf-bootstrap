@@ -1,0 +1,72 @@
+# Binaries
+oci-tf-bootstrap
+oci-tf-bootstrap-*
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+coverage.txt
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Dependency directories
+vendor/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Generated Terraform output directories
+terraform/
+terraform-output/
+terraform-always-free/
+test-infra/
+
+# Terraform state and cache (should never be committed)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# tfvars files (may contain secrets)
+*.tfvars
+*.tfvars.json
+
+# goreleaser
+dist/
+
+# Local environment
+.env
+.env.local
+.envrc
+
+# Claude Code artifacts
+.claude/
+
+# Development artifacts
+.choices
+
+# act (local GitHub Actions runner)
+.actrc

@@ -1,0 +1,110 @@
+version: 2
+
+project_name: oci-tf-bootstrap
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+
+builds:
+  - id: oci-tf-bootstrap
+    main: .
+    binary: oci-tf-bootstrap
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+      - completions/*
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: larsenclose
+    name: oci-tf-bootstrap
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## OCI TF Bootstrap {{ .Version }}
+
+    Solve the OCI "Blank Page Problem" - instantly generate ready-to-use Terraform configurations.
+
+    ### Installation
+
+    **macOS (Apple Silicon)**
+    ```bash
+    curl -L https://github.com/larsenclose/oci-tf-bootstrap/releases/download/{{ .Tag }}/oci-tf-bootstrap_{{ .Version }}_darwin_arm64.tar.gz | tar xz
+    sudo mv oci-tf-bootstrap /usr/local/bin/
+    ```
+
+    **macOS (Intel)**
+    ```bash
+    curl -L https://github.com/larsenclose/oci-tf-bootstrap/releases/download/{{ .Tag }}/oci-tf-bootstrap_{{ .Version }}_darwin_amd64.tar.gz | tar xz
+    sudo mv oci-tf-bootstrap /usr/local/bin/
+    ```
+
+    **Linux (x86_64)**
+    ```bash
+    curl -L https://github.com/larsenclose/oci-tf-bootstrap/releases/download/{{ .Tag }}/oci-tf-bootstrap_{{ .Version }}_linux_amd64.tar.gz | tar xz
+    sudo mv oci-tf-bootstrap /usr/local/bin/
+    ```
+
+    **Linux (ARM64)**
+    ```bash
+    curl -L https://github.com/larsenclose/oci-tf-bootstrap/releases/download/{{ .Tag }}/oci-tf-bootstrap_{{ .Version }}_linux_arm64.tar.gz | tar xz
+    sudo mv oci-tf-bootstrap /usr/local/bin/
+    ```
+
+brews:
+  - name: oci-tf-bootstrap
+    repository:
+      owner: larsenclose
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: goreleaser
+      email: goreleaser@larsenclose.dev
+    directory: Formula
+    homepage: https://github.com/larsenclose/oci-tf-bootstrap
+    description: Generate ready-to-use Terraform from OCI tenancy discovery
+    license: Apache-2.0
+    skip_upload: auto
+    test: |
+      system "#{bin}/oci-tf-bootstrap", "--help"

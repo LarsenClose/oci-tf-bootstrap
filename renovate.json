@@ -5,6 +5,7 @@
     "schedule:weekly",
     ":semanticCommits"
   ],
+  "platformAutomerge": true,
   "packageRules": [
     {
       "matchManagers": ["gomod"],
@@ -28,6 +29,18 @@
       "matchPackageNames": ["github.com/hashicorp/terraform-json"],
       "automerge": false,
       "labels": ["terraform-compat"]
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "labels": ["github-actions"]
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["github-actions"]
     }
   ],
   "postUpdateOptions": ["gomodTidy"],

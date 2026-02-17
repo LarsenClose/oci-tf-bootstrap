@@ -13,8 +13,7 @@ import (
 )
 
 func Run(ctx *Context) (*Result, error) {
-	configPath := ctx.ConfigDir + "/config"
-	configProvider, err := common.ConfigurationProviderFromFileWithProfile(configPath, ctx.Profile, "")
+	configProvider, err := common.ConfigurationProviderFromFileWithProfile(ctx.ConfigPath, ctx.Profile, "")
 	if err != nil {
 		return nil, err
 	}

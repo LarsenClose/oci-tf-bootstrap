@@ -21,7 +21,7 @@ func OutputJSON(result *discovery.Result, w io.Writer) error {
 }
 
 func OutputTerraform(result *discovery.Result, outputDir string, opts Options) error {
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0750); err != nil {
 		return err
 	}
 

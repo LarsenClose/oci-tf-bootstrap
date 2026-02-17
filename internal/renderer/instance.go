@@ -32,7 +32,7 @@ func findSSHKeyPath() string {
 }
 
 func writeInstanceExample(result *discovery.Result, outputDir string, opts Options) error {
-	f, err := os.Create(filepath.Join(outputDir, "instance_example.tf"))
+	f, err := os.Create(filepath.Join(outputDir, "instance_example.tf")) // #nosec G304 -- outputDir is user-specified CLI flag
 	if err != nil {
 		return err
 	}

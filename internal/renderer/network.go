@@ -15,7 +15,7 @@ func writeNetwork(result *discovery.Result, outputDir string, opts Options) erro
 		return nil
 	}
 
-	f, err := os.Create(filepath.Join(outputDir, "network.tf"))
+	f, err := os.Create(filepath.Join(outputDir, "network.tf")) // #nosec G304 -- outputDir is user-specified CLI flag
 	if err != nil {
 		return err
 	}

@@ -33,7 +33,7 @@ provider "oci" {
 
 func writeProvider(result *discovery.Result, outputDir string) error {
 	tmpl := template.Must(template.New("provider").Parse(providerTmpl))
-	f, err := os.Create(filepath.Join(outputDir, "provider.tf"))
+	f, err := os.Create(filepath.Join(outputDir, "provider.tf")) // #nosec G304 -- outputDir is user-specified CLI flag
 	if err != nil {
 		return err
 	}

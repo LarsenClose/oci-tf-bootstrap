@@ -81,7 +81,7 @@ func writeCompartmentTree(f *os.File, nodes []*compartmentNode, tracker *nameTra
 }
 
 func writeLocals(result *discovery.Result, outputDir string, opts Options) error {
-	f, err := os.Create(filepath.Join(outputDir, "locals.tf"))
+	f, err := os.Create(filepath.Join(outputDir, "locals.tf")) // #nosec G304 -- outputDir is user-specified CLI flag
 	if err != nil {
 		return err
 	}

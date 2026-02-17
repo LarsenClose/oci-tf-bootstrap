@@ -9,7 +9,7 @@ import (
 )
 
 func writeDataSources(result *discovery.Result, outputDir string) error {
-	f, err := os.Create(filepath.Join(outputDir, "data.tf"))
+	f, err := os.Create(filepath.Join(outputDir, "data.tf")) // #nosec G304 -- outputDir is user-specified CLI flag
 	if err != nil {
 		return err
 	}

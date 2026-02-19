@@ -95,12 +95,9 @@ release:
 brews:
   - name: oci-tf-bootstrap
     repository:
-      owner: larsenclose
+      owner: disentangle-network
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    commit_author:
-      name: goreleaser
-      email: goreleaser@larsenclose.dev
     directory: Formula
     homepage: https://github.com/larsenclose/oci-tf-bootstrap
     description: Generate ready-to-use Terraform from OCI tenancy discovery

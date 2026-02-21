@@ -9,6 +9,14 @@ import (
 	"github.com/larsenclose/oci-tf-bootstrap/internal/discovery"
 )
 
+// subnetType returns "public" or "private" for use in Terraform comments
+func subnetType(isPublic bool) string {
+	if isPublic {
+		return "public"
+	}
+	return "private"
+}
+
 // findSSHKeyPath checks for common SSH public key files and returns the path if found
 func findSSHKeyPath() string {
 	home, err := os.UserHomeDir()
@@ -206,12 +214,29 @@ func writeStandardInstance(f *os.File, result *discovery.Result) {
 	fmt.Fprintln(f, "  }")
 	fmt.Fprintln(f, "")
 	fmt.Fprintln(f, "  create_vnic_details {")
-	fmt.Fprintln(f, "    assign_public_ip = true")
 
 	if len(result.VCNs) > 0 && len(result.VCNs[0].Subnets) > 0 {
-		subnetName := toTFName(result.VCNs[0].Subnets[0].DisplayName)
-		fmt.Fprintf(f, "    subnet_id        = local.subnet_%s\n", subnetName)
+		// Prefer public subnet for instances that need direct internet access
+		var selectedSubnet *discovery.Subnet
+		for i := range result.VCNs[0].Subnets {
+			if result.VCNs[0].Subnets[i].IsPublic {
+				selectedSubnet = &result.VCNs[0].Subnets[i]
+				break
+			}
+		}
+		if selectedSubnet == nil {
+			selectedSubnet = &result.VCNs[0].Subnets[0]
+		}
+
+		subnetName := toTFName(selectedSubnet.DisplayName)
+		if selectedSubnet.IsPublic {
+			fmt.Fprintln(f, "    assign_public_ip = true")
+		} else {
+			fmt.Fprintln(f, "    assign_public_ip = false  # Private subnet; set to true only with a public subnet")
+		}
+		fmt.Fprintf(f, "    subnet_id        = local.subnet_%s  # %s\n", subnetName, subnetType(selectedSubnet.IsPublic))
 	} else {
+		fmt.Fprintln(f, "    assign_public_ip = true")
 		fmt.Fprintln(f, "    # Use the bootstrap subnet from network.tf, or uncomment after creating your own:")
 		fmt.Fprintln(f, "    subnet_id = oci_core_subnet.public.id")
 		fmt.Fprintln(f, "    # subnet_id = local.subnet_<your_subnet_name>")

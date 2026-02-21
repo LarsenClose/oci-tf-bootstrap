@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"github.com/larsenclose/oci-tf-bootstrap/internal/discovery"
@@ -17,6 +18,60 @@ var (
 	commit  = "none"
 	date    = "unknown"
 )
+
+// versionInfo returns a human-readable version string. When ldflags are
+// injected at build time (GoReleaser path), the ldflags values are returned
+// unchanged. Otherwise it falls back to runtime/debug.ReadBuildInfo so that
+// plain `go build .` and `go install ...@vX.Y.Z` produce useful output.
+func versionInfo() (ver, com, dat string) {
+	// If ldflags were injected, use them as-is.
+	if version != "dev" {
+		return version, commit, date
+	}
+
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "dev", "unknown commit", "unknown"
+	}
+
+	// go install ...@vX.Y.Z path: info.Main.Version is a real semver tag.
+	if info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version, "none", "unknown"
+	}
+
+	// VCS path: extract revision, time, and dirty flag from build settings.
+	var revision, vcsTime string
+	modified := false
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			revision = s.Value
+		case "vcs.time":
+			vcsTime = s.Value
+		case "vcs.modified":
+			modified = s.Value == "true"
+		}
+	}
+
+	if revision == "" {
+		return "dev", "unknown commit", "unknown"
+	}
+
+	short := revision
+	if len(short) > 8 {
+		short = short[:8]
+	}
+
+	if modified {
+		ver = "dev-" + short + " (dirty)"
+	} else if vcsTime != "" {
+		ver = "dev-" + short + " (" + vcsTime + ")"
+	} else {
+		ver = "dev-" + short
+	}
+
+	return ver, revision, vcsTime
+}
 
 var (
 	profile     = flag.String("profile", "", "OCI config profile name (default: $OCI_CLI_PROFILE or DEFAULT)")
@@ -76,9 +131,10 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("oci-tf-bootstrap %s\n", version)
-		fmt.Printf("  commit: %s\n", commit)
-		fmt.Printf("  built:  %s\n", date)
+		ver, com, dat := versionInfo()
+		fmt.Printf("oci-tf-bootstrap %s\n", ver)
+		fmt.Printf("  commit: %s\n", com)
+		fmt.Printf("  built:  %s\n", dat)
 		os.Exit(0)
 	}
 

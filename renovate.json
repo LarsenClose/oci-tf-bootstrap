@@ -5,6 +5,9 @@
     "schedule:weekly",
     ":semanticCommits"
   ],
+  "golang": {
+    "enabled": true
+  },
   "platformAutomerge": true,
   "packageRules": [
     {

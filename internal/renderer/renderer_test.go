@@ -499,3 +499,124 @@ func TestNameTrackerUnique(t *testing.T) {
 		t.Errorf("expected 'othercompartment', got %q", name4)
 	}
 }
+
+// Tests for standard instance subnet selection
+
+func TestWriteStandardInstancePrefersPublicSubnet(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "oci-tf-bootstrap-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	result := &discovery.Result{
+		Tenancy: discovery.TenancyInfo{
+			ID:         "ocid1.tenancy.oc1..test",
+			HomeRegion: "us-phoenix-1",
+		},
+		AvailabilityDomains: []discovery.AvailabilityDomain{
+			{Name: "TEST:AD-1"},
+		},
+		Images: []discovery.Image{
+			{OS: "Canonical Ubuntu", OSVersion: "24.04"},
+		},
+		VCNs: []discovery.VCN{
+			{
+				ID:          "ocid1.vcn.oc1..test",
+				DisplayName: "test-vcn",
+				Subnets: []discovery.Subnet{
+					{ID: "ocid1.subnet.private", DisplayName: "private-subnet", IsPublic: false, CIDRBlock: "10.0.1.0/24"},
+					{ID: "ocid1.subnet.public", DisplayName: "public-subnet", IsPublic: true, CIDRBlock: "10.0.0.0/24"},
+				},
+			},
+		},
+	}
+
+	opts := Options{AlwaysFree: false}
+	if err := OutputTerraform(result, tmpDir, opts); err != nil {
+		t.Fatalf("OutputTerraform failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "instance_example.tf"))
+	if err != nil {
+		t.Fatalf("failed to read instance_example.tf: %v", err)
+	}
+	contentStr := string(content)
+
+	// Should select public-subnet, not private-subnet (which is listed first)
+	if !strings.Contains(contentStr, "local.subnet_public_subnet") {
+		t.Error("standard instance should prefer the public subnet over the first (private) subnet")
+	}
+	if strings.Contains(contentStr, "local.subnet_private_subnet") {
+		t.Error("standard instance should not use the private subnet when a public one is available")
+	}
+	if !strings.Contains(contentStr, "assign_public_ip = true") {
+		t.Error("standard instance with public subnet should have assign_public_ip = true")
+	}
+	if !strings.Contains(contentStr, "# public") {
+		t.Error("subnet reference should include a public/private type comment")
+	}
+}
+
+func TestWriteStandardInstanceFallsBackToPrivateSubnet(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "oci-tf-bootstrap-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	result := &discovery.Result{
+		Tenancy: discovery.TenancyInfo{
+			ID:         "ocid1.tenancy.oc1..test",
+			HomeRegion: "us-phoenix-1",
+		},
+		AvailabilityDomains: []discovery.AvailabilityDomain{
+			{Name: "TEST:AD-1"},
+		},
+		Images: []discovery.Image{
+			{OS: "Canonical Ubuntu", OSVersion: "24.04"},
+		},
+		VCNs: []discovery.VCN{
+			{
+				ID:          "ocid1.vcn.oc1..test",
+				DisplayName: "test-vcn",
+				Subnets: []discovery.Subnet{
+					{ID: "ocid1.subnet.private1", DisplayName: "private-subnet-a", IsPublic: false, CIDRBlock: "10.0.1.0/24"},
+					{ID: "ocid1.subnet.private2", DisplayName: "private-subnet-b", IsPublic: false, CIDRBlock: "10.0.2.0/24"},
+				},
+			},
+		},
+	}
+
+	opts := Options{AlwaysFree: false}
+	if err := OutputTerraform(result, tmpDir, opts); err != nil {
+		t.Fatalf("OutputTerraform failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "instance_example.tf"))
+	if err != nil {
+		t.Fatalf("failed to read instance_example.tf: %v", err)
+	}
+	contentStr := string(content)
+
+	// Should fall back to first subnet (private-subnet-a)
+	if !strings.Contains(contentStr, "local.subnet_private_subnet_a") {
+		t.Error("standard instance should fall back to first subnet when no public subnets exist")
+	}
+	// assign_public_ip should be false for private subnet
+	if !strings.Contains(contentStr, "assign_public_ip = false") {
+		t.Error("standard instance with private subnet should have assign_public_ip = false")
+	}
+	if !strings.Contains(contentStr, "# private") {
+		t.Error("subnet reference should include a private type comment")
+	}
+}
+
+func TestSubnetType(t *testing.T) {
+	if got := subnetType(true); got != "public" {
+		t.Errorf("subnetType(true) = %q, want %q", got, "public")
+	}
+	if got := subnetType(false); got != "private" {
+		t.Errorf("subnetType(false) = %q, want %q", got, "private")
+	}
+}

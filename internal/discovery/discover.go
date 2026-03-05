@@ -3,8 +3,11 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/oracle/oci-go-sdk/v65/common"
+	"github.com/oracle/oci-go-sdk/v65/containerengine"
 	"github.com/oracle/oci-go-sdk/v65/core"
 	"github.com/oracle/oci-go-sdk/v65/identity"
 	lim "github.com/oracle/oci-go-sdk/v65/limits"
@@ -508,6 +511,58 @@ func discoverLimits(ctx context.Context, client lim.LimitsClient, tenancyID stri
 		}
 	}
 	return limits, nil
+}
+
+// okeVersionRe extracts the OKE K8s version from a source name like
+// "Oracle-Linux-8.10-aarch64-2025.11.20-0-OKE-1.31.10-1345"
+var okeVersionRe = regexp.MustCompile(`OKE-(\d+\.\d+\.\d+)`)
+
+func discoverOKEImages(ctx context.Context, client containerengine.ContainerEngineClient, compartmentID string) ([]OKEImage, error) {
+	optionID := "all"
+	req := containerengine.GetNodePoolOptionsRequest{
+		NodePoolOptionId: &optionID,
+		CompartmentId:    &compartmentID,
+	}
+
+	resp, err := client.GetNodePoolOptions(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	var images []OKEImage
+	for _, src := range resp.Sources {
+		imgSrc, ok := src.(containerengine.NodeSourceViaImageOption)
+		if !ok {
+			continue
+		}
+
+		sourceName := safeString(imgSrc.SourceName)
+		imageID := safeString(imgSrc.ImageId)
+		if sourceName == "" || imageID == "" {
+			continue
+		}
+
+		// Extract K8s version from source name
+		k8sVersion := ""
+		if matches := okeVersionRe.FindStringSubmatch(sourceName); len(matches) > 1 {
+			k8sVersion = matches[1]
+		}
+
+		// Determine architecture from source name
+		arch := "x86_64"
+		if strings.Contains(strings.ToLower(sourceName), "aarch64") {
+			arch = "aarch64"
+		}
+
+		images = append(images, OKEImage{
+			ID:                imageID,
+			SourceName:        sourceName,
+			KubernetesVersion: k8sVersion,
+			Architecture:      arch,
+		})
+	}
+
+	return images, nil
 }
 
 func discoverTenancy(ctx context.Context, client identity.IdentityClient, tenancyID string) (TenancyInfo, error) {

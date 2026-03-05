@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/oracle/oci-go-sdk/v65/common"
+	"github.com/oracle/oci-go-sdk/v65/containerengine"
 	"github.com/oracle/oci-go-sdk/v65/core"
 	"github.com/oracle/oci-go-sdk/v65/identity"
 	lim "github.com/oracle/oci-go-sdk/v65/limits"
@@ -41,6 +42,11 @@ func Run(ctx *Context) (*Result, error) {
 	limitsClient, err := lim.NewLimitsClientWithConfigurationProvider(configProvider)
 	if err != nil {
 		return nil, fmt.Errorf("limits client: %w", err)
+	}
+
+	ceClient, err := containerengine.NewContainerEngineClientWithConfigurationProvider(configProvider)
+	if err != nil {
+		return nil, fmt.Errorf("containerengine client: %w", err)
 	}
 
 	result := &Result{
@@ -153,6 +159,22 @@ func Run(ctx *Context) (*Result, error) {
 		mu.Unlock()
 		return nil
 	})
+
+	// Discover OKE images when always-free mode is active (OKE is the target for always-free K8s)
+	if ctx.AlwaysFree {
+		g.Go(func() error {
+			fmt.Println("  → OKE Node Images")
+			okeImages, err := discoverOKEImages(gctx, ceClient, ctx.TenancyID)
+			if err != nil {
+				fmt.Printf("    ⚠ OKE image discovery failed (non-fatal): %v\n", err)
+				return nil
+			}
+			mu.Lock()
+			result.OKEImages = okeImages
+			mu.Unlock()
+			return nil
+		})
+	}
 
 	if err := g.Wait(); err != nil {
 		return nil, err

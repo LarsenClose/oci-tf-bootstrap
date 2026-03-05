@@ -35,3 +35,10 @@ type Image struct {
 	SizeGB           float64  `json:"size_gb"`
 	CompatibleShapes []string `json:"compatible_shapes"`
 }
+
+type OKEImage struct {
+	ID                string `json:"id"`
+	SourceName        string `json:"source_name"`
+	KubernetesVersion string `json:"kubernetes_version"`
+	Architecture      string `json:"architecture"`
+}

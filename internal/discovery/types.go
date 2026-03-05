@@ -16,6 +16,7 @@ type Result struct {
 	AvailabilityDomains []AvailabilityDomain `json:"availability_domains"`
 	Shapes              []Shape              `json:"shapes"`
 	Images              []Image              `json:"images"`
+	OKEImages           []OKEImage           `json:"oke_images,omitempty"`
 	VCNs                []VCN                `json:"vcns"`
 	BlockVolumes        []BlockVolume        `json:"block_volumes"`
 	Limits              []ServiceLimit       `json:"limits"`

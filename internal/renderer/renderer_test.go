@@ -178,7 +178,14 @@ func TestToTFName(t *testing.T) {
 		{"Oracle Linux 9", "oracle_linux_9"},
 		{"some-dashed-name", "some_dashed_name"},
 		{"MixedCase Name", "mixedcase_name"},
-		{"multiple   spaces", "multiple___spaces"},
+		{"multiple   spaces", "multiple_spaces"},
+		{"a..b", "a_b"},
+		{"name(v2)", "name_v2"},
+		{"path/to/thing", "path_to_thing"},
+		{"special@chars#here", "special_chars_here"},
+		{"123abc", "n123abc"},
+		{"---leading-trailing---", "leading_trailing"},
+		{"", "unnamed"},
 	}
 
 	for _, tt := range tests {
@@ -618,5 +625,202 @@ func TestSubnetType(t *testing.T) {
 	}
 	if got := subnetType(false); got != "private" {
 		t.Errorf("subnetType(false) = %q, want %q", got, "private")
+	}
+}
+
+// Tests for OKE image rendering
+
+func TestWriteLocalsWithOKEImages(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "oci-tf-bootstrap-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	result := &discovery.Result{
+		Tenancy: discovery.TenancyInfo{
+			ID:         "ocid1.tenancy.oc1..test",
+			HomeRegion: "us-phoenix-1",
+		},
+		AvailabilityDomains: []discovery.AvailabilityDomain{
+			{Name: "TEST:AD-1"},
+		},
+		Shapes: []discovery.Shape{
+			{Name: "VM.Standard.A1.Flex", IsFlexible: true, OCPUs: 4},
+		},
+		Images: []discovery.Image{
+			{OS: "Canonical Ubuntu", OSVersion: "24.04"},
+		},
+		OKEImages: []discovery.OKEImage{
+			{ID: "ocid1.image.oc1..oke-aarch64", SourceName: "Oracle-Linux-8.10-aarch64-2025.11.20-0-OKE-1.31.10-1345", KubernetesVersion: "v1.31.10", Architecture: "aarch64"},
+			{ID: "ocid1.image.oc1..oke-x86", SourceName: "Oracle-Linux-8.10-2025.11.20-0-OKE-1.31.10-1345", KubernetesVersion: "v1.31.10", Architecture: "x86_64"},
+		},
+	}
+
+	opts := Options{AlwaysFree: false}
+	if err := OutputTerraform(result, tmpDir, opts); err != nil {
+		t.Fatalf("OutputTerraform failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "locals.tf"))
+	if err != nil {
+		t.Fatalf("failed to read locals.tf: %v", err)
+	}
+	contentStr := string(content)
+
+	// Check for OKE section header
+	if !strings.Contains(contentStr, "# ── OKE Node Images") {
+		t.Error("locals.tf should contain the OKE Node Images header")
+	}
+
+	// Check for OKE image entries with correct naming pattern
+	if !strings.Contains(contentStr, "oke_image_v1_31_10_aarch64") {
+		t.Error("locals.tf should contain oke_image_v1_31_10_aarch64 entry")
+	}
+	if !strings.Contains(contentStr, "oke_image_v1_31_10_x86_64") {
+		t.Error("locals.tf should contain oke_image_v1_31_10_x86_64 entry")
+	}
+
+	// Check for image OCID values
+	if !strings.Contains(contentStr, "ocid1.image.oc1..oke-aarch64") {
+		t.Error("locals.tf should contain aarch64 OKE image OCID")
+	}
+	if !strings.Contains(contentStr, "ocid1.image.oc1..oke-x86") {
+		t.Error("locals.tf should contain x86_64 OKE image OCID")
+	}
+}
+
+func TestWriteDataSourcesWithOKEImages(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "oci-tf-bootstrap-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	result := &discovery.Result{
+		Tenancy: discovery.TenancyInfo{
+			ID:         "ocid1.tenancy.oc1..test",
+			HomeRegion: "us-phoenix-1",
+		},
+		AvailabilityDomains: []discovery.AvailabilityDomain{
+			{Name: "TEST:AD-1"},
+		},
+		OKEImages: []discovery.OKEImage{
+			{ID: "ocid1.image.oc1..oke-aarch64", SourceName: "Oracle-Linux-8.10-aarch64-2025.11.20-0-OKE-1.31.10-1345", KubernetesVersion: "v1.31.10", Architecture: "aarch64"},
+			{ID: "ocid1.image.oc1..oke-x86", SourceName: "Oracle-Linux-8.10-2025.11.20-0-OKE-1.31.10-1345", KubernetesVersion: "v1.31.10", Architecture: "x86_64"},
+		},
+	}
+
+	if err := writeDataSources(result, tmpDir); err != nil {
+		t.Fatalf("writeDataSources failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "data.tf"))
+	if err != nil {
+		t.Fatalf("failed to read data.tf: %v", err)
+	}
+	contentStr := string(content)
+
+	// Check for OKE node pool data source
+	if !strings.Contains(contentStr, `data "oci_containerengine_node_pool_option" "oke"`) {
+		t.Error("data.tf should contain OKE node pool option data source")
+	}
+
+	// Check for OKE node images output
+	if !strings.Contains(contentStr, `output "oke_node_images"`) {
+		t.Error("data.tf should contain oke_node_images output")
+	}
+
+	// Check for correct version/arch keys in the output map
+	if !strings.Contains(contentStr, "v1_31_10_aarch64") {
+		t.Error("data.tf should contain v1_31_10_aarch64 key in OKE output map")
+	}
+	if !strings.Contains(contentStr, "v1_31_10_x86_64") {
+		t.Error("data.tf should contain v1_31_10_x86_64 key in OKE output map")
+	}
+}
+
+func TestWriteDataSourcesWithoutOKEImages(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "oci-tf-bootstrap-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	result := &discovery.Result{
+		Tenancy: discovery.TenancyInfo{
+			ID:         "ocid1.tenancy.oc1..test",
+			HomeRegion: "us-phoenix-1",
+		},
+		AvailabilityDomains: []discovery.AvailabilityDomain{
+			{Name: "TEST:AD-1"},
+		},
+		Images: []discovery.Image{
+			{OS: "Canonical Ubuntu", OSVersion: "24.04"},
+		},
+		OKEImages: nil,
+	}
+
+	if err := writeDataSources(result, tmpDir); err != nil {
+		t.Fatalf("writeDataSources failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "data.tf"))
+	if err != nil {
+		t.Fatalf("failed to read data.tf: %v", err)
+	}
+	contentStr := string(content)
+
+	// OKE blocks should NOT be present when OKEImages is nil
+	if strings.Contains(contentStr, "oci_containerengine_node_pool_option") {
+		t.Error("data.tf should NOT contain OKE node pool option when OKEImages is nil")
+	}
+	if strings.Contains(contentStr, "oke_node_images") {
+		t.Error("data.tf should NOT contain oke_node_images output when OKEImages is nil")
+	}
+}
+
+func TestWriteLocalsWithCompartment(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "oci-tf-bootstrap-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	result := &discovery.Result{
+		Tenancy: discovery.TenancyInfo{
+			ID:         "ocid1.tenancy.oc1..test",
+			HomeRegion: "us-phoenix-1",
+		},
+		CompartmentID: "ocid1.compartment.oc1..target",
+		AvailabilityDomains: []discovery.AvailabilityDomain{
+			{Name: "TEST:AD-1"},
+		},
+	}
+
+	opts := Options{AlwaysFree: false}
+	if err := writeLocals(result, tmpDir, opts); err != nil {
+		t.Fatalf("writeLocals failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "locals.tf"))
+	if err != nil {
+		t.Fatalf("failed to read locals.tf: %v", err)
+	}
+	contentStr := string(content)
+
+	// Should contain the actual compartment OCID, not a reference to tenancy
+	if !strings.Contains(contentStr, `compartment_ocid = "ocid1.compartment.oc1..target"`) {
+		t.Error("locals.tf should contain compartment_ocid set to the target compartment OCID")
+	}
+
+	// Should still contain tenancy_ocid
+	if !strings.Contains(contentStr, `tenancy_ocid = "ocid1.tenancy.oc1..test"`) {
+		t.Error("locals.tf should still contain the tenancy_ocid")
+	}
+
+	// Should NOT contain the "Using tenancy root" fallback
+	if strings.Contains(contentStr, "Using tenancy root") {
+		t.Error("locals.tf should not contain 'Using tenancy root' when compartment differs from tenancy")
 	}
 }

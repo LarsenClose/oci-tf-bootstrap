@@ -9,7 +9,7 @@ import (
 
 // NewContext creates a new OCI discovery context from the given config file path and profile.
 // The configPath should be the full path to the OCI config file (e.g., ~/.oci/config).
-func NewContext(profile, configPath, regionOverride string, alwaysFree bool) (*Context, error) {
+func NewContext(profile, configPath, regionOverride, compartmentID string, alwaysFree bool) (*Context, error) {
 	configProvider, err := common.ConfigurationProviderFromFileWithProfile(configPath, profile, "")
 	if err != nil {
 		return nil, fmt.Errorf("loading config: %w", err)
@@ -34,13 +34,19 @@ func NewContext(profile, configPath, regionOverride string, alwaysFree bool) (*C
 		region = regionOverride
 	}
 
+	compID := tenancyID
+	if compartmentID != "" {
+		compID = compartmentID
+	}
+
 	return &Context{
-		TenancyID:  tenancyID,
-		UserID:     userID,
-		Region:     region,
-		Profile:    profile,
-		ConfigPath: configPath,
-		ConfigDir:  filepath.Dir(configPath),
-		AlwaysFree: alwaysFree,
+		TenancyID:     tenancyID,
+		UserID:        userID,
+		Region:        region,
+		Profile:       profile,
+		ConfigPath:    configPath,
+		ConfigDir:     filepath.Dir(configPath),
+		AlwaysFree:    alwaysFree,
+		CompartmentID: compID,
 	}, nil
 }

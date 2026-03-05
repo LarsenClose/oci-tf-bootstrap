@@ -79,6 +79,7 @@ var (
 	configFile  = flag.String("config-file", "", "OCI config file path (default: $OCI_CLI_CONFIG_FILE or ~/.oci/config)")
 	outputDir   = flag.String("output", "./terraform", "Output directory for generated TF files")
 	region      = flag.String("region", "", "Override region (default: from config)")
+	compartment = flag.String("compartment", "", "Target compartment OCID (default: tenancy root)")
 	jsonOut     = flag.Bool("json", false, "Output raw discovery as JSON instead of TF")
 	alwaysFree  = flag.Bool("always-free", false, "Filter output to always-free tier eligible resources only")
 	showVersion = flag.Bool("version", false, "Print version information and exit")
@@ -156,7 +157,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx, err := discovery.NewContext(ociProfile, ociConfigPath, *region, *alwaysFree)
+	ctx, err := discovery.NewContext(ociProfile, ociConfigPath, *region, *compartment, *alwaysFree)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize OCI context: %v\n", err)
 		if strings.Contains(err.Error(), "can not read") || strings.Contains(err.Error(), "configuration") {
@@ -168,6 +169,9 @@ func main() {
 
 	fmt.Printf("  Tenancy:    %s\n", ctx.TenancyID)
 	fmt.Printf("  Region:     %s\n", ctx.Region)
+	if *compartment != "" {
+		fmt.Printf("  Compartment: %s\n", *compartment)
+	}
 	fmt.Println()
 
 	result, err := discovery.Run(ctx)

@@ -50,6 +50,7 @@ func Run(ctx *Context) (*Result, error) {
 	}
 
 	result := &Result{
+		CompartmentID: ctx.CompartmentID,
 		Tenancy: TenancyInfo{
 			ID:         ctx.TenancyID,
 			HomeRegion: ctx.Region,
@@ -99,7 +100,7 @@ func Run(ctx *Context) (*Result, error) {
 
 	g.Go(func() error {
 		fmt.Println("  → Shapes")
-		shapes, err := discoverShapes(gctx, computeClient, ctx.TenancyID)
+		shapes, err := discoverShapes(gctx, computeClient, ctx.CompartmentID)
 		if err != nil {
 			return fmt.Errorf("shapes: %w", err)
 		}
@@ -111,7 +112,7 @@ func Run(ctx *Context) (*Result, error) {
 
 	g.Go(func() error {
 		fmt.Println("  → Images")
-		images, err := discoverImages(gctx, computeClient, ctx.TenancyID)
+		images, err := discoverImages(gctx, computeClient, ctx.CompartmentID)
 		if err != nil {
 			return fmt.Errorf("images: %w", err)
 		}
@@ -123,7 +124,7 @@ func Run(ctx *Context) (*Result, error) {
 
 	g.Go(func() error {
 		fmt.Println("  → VCNs")
-		vcns, err := discoverVCNs(gctx, networkClient, ctx.TenancyID)
+		vcns, err := discoverVCNs(gctx, networkClient, ctx.CompartmentID)
 		if err != nil {
 			fmt.Printf("    ⚠ VCN discovery failed (non-fatal): %v\n", err)
 			return nil
@@ -149,7 +150,7 @@ func Run(ctx *Context) (*Result, error) {
 
 	g.Go(func() error {
 		fmt.Println("  → Block Volumes")
-		volumes, err := discoverBlockVolumes(gctx, blockstorageClient, ctx.TenancyID)
+		volumes, err := discoverBlockVolumes(gctx, blockstorageClient, ctx.CompartmentID)
 		if err != nil {
 			fmt.Printf("    ⚠ Block volume discovery failed (non-fatal): %v\n", err)
 			return nil
@@ -164,7 +165,7 @@ func Run(ctx *Context) (*Result, error) {
 	if ctx.AlwaysFree {
 		g.Go(func() error {
 			fmt.Println("  → OKE Node Images")
-			okeImages, err := discoverOKEImages(gctx, ceClient, ctx.TenancyID)
+			okeImages, err := discoverOKEImages(gctx, ceClient, ctx.CompartmentID)
 			if err != nil {
 				fmt.Printf("    ⚠ OKE image discovery failed (non-fatal): %v\n", err)
 				return nil

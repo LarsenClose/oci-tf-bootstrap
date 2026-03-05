@@ -7,10 +7,12 @@ type Context struct {
 	Profile    string
 	ConfigPath string // Full path to config file (e.g., ~/.oci/config)
 	ConfigDir  string // Directory containing config file (e.g., ~/.oci)
-	AlwaysFree bool
+	AlwaysFree    bool
+	CompartmentID string // Target compartment (defaults to TenancyID for root)
 }
 
 type Result struct {
+	CompartmentID       string               `json:"compartment_id"` // Compartment used for discovery
 	Tenancy             TenancyInfo          `json:"tenancy"`
 	Compartments        []Compartment        `json:"compartments"`
 	AvailabilityDomains []AvailabilityDomain `json:"availability_domains"`

@@ -80,6 +80,7 @@ oci-tf-bootstrap --json > discovery.json
 | `--config-file` | `~/.oci/config` | OCI config file path (takes precedence over `--config`) |
 | `--output` | `./terraform` | Output directory for generated TF files |
 | `--region` | from config | Override region |
+| `--compartment` | tenancy root | Target compartment OCID for resource discovery and placement |
 | `--always-free` | `false` | Filter to always-free tier resources only |
 | `--json` | `false` | Output raw discovery as JSON |
 

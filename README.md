@@ -82,6 +82,7 @@ oci-tf-bootstrap --json > discovery.json
 | `--region` | from config | Override region |
 | `--compartment` | tenancy root | Target compartment OCID for resource discovery and placement |
 | `--always-free` | `false` | Filter to always-free tier resources only |
+| `--oke` | `false` | Include OKE (Oracle Kubernetes Engine) node image discovery |
 | `--json` | `false` | Output raw discovery as JSON |
 
 ### Environment Variables

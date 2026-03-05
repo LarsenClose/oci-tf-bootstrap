@@ -8,6 +8,7 @@ type Context struct {
 	ConfigPath string // Full path to config file (e.g., ~/.oci/config)
 	ConfigDir  string // Directory containing config file (e.g., ~/.oci)
 	AlwaysFree    bool
+	OKE           bool   // Explicitly enable OKE image discovery
 	CompartmentID string // Target compartment (defaults to TenancyID for root)
 }
 

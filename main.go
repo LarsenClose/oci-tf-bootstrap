@@ -82,6 +82,7 @@ var (
 	compartment = flag.String("compartment", "", "Target compartment OCID (default: tenancy root)")
 	jsonOut     = flag.Bool("json", false, "Output raw discovery as JSON instead of TF")
 	alwaysFree  = flag.Bool("always-free", false, "Filter output to always-free tier eligible resources only")
+	oke         = flag.Bool("oke", false, "Include OKE (Oracle Kubernetes Engine) node image discovery")
 	showVersion = flag.Bool("version", false, "Print version information and exit")
 )
 
@@ -157,7 +158,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx, err := discovery.NewContext(ociProfile, ociConfigPath, *region, *compartment, *alwaysFree)
+	ctx, err := discovery.NewContext(ociProfile, ociConfigPath, *region, *compartment, *alwaysFree, *oke)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize OCI context: %v\n", err)
 		if strings.Contains(err.Error(), "can not read") || strings.Contains(err.Error(), "configuration") {

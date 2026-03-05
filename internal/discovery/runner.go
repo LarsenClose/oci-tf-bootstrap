@@ -161,8 +161,8 @@ func Run(ctx *Context) (*Result, error) {
 		return nil
 	})
 
-	// Discover OKE images when always-free mode is active (OKE is the target for always-free K8s)
-	if ctx.AlwaysFree {
+	// Discover OKE images when explicitly requested or in always-free mode
+	if ctx.AlwaysFree || ctx.OKE {
 		g.Go(func() error {
 			fmt.Println("  → OKE Node Images")
 			okeImages, err := discoverOKEImages(gctx, ceClient, ctx.CompartmentID)

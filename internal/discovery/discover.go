@@ -13,6 +13,7 @@ import (
 	lim "github.com/oracle/oci-go-sdk/v65/limits"
 )
 
+
 func safeString(s *string) string {
 	if s == nil {
 		return ""
@@ -20,7 +21,7 @@ func safeString(s *string) string {
 	return *s
 }
 
-func discoverCompartments(ctx context.Context, client identity.IdentityClient, tenancyID string) ([]Compartment, error) {
+func discoverCompartments(ctx context.Context, client IdentityAPI, tenancyID string) ([]Compartment, error) {
 	req := identity.ListCompartmentsRequest{
 		CompartmentId:          &tenancyID,
 		CompartmentIdInSubtree: common.Bool(true),
@@ -51,7 +52,7 @@ func discoverCompartments(ctx context.Context, client identity.IdentityClient, t
 	return compartments, nil
 }
 
-func discoverADs(ctx context.Context, client identity.IdentityClient, tenancyID string) ([]AvailabilityDomain, error) {
+func discoverADs(ctx context.Context, client IdentityAPI, tenancyID string) ([]AvailabilityDomain, error) {
 	req := identity.ListAvailabilityDomainsRequest{
 		CompartmentId: &tenancyID,
 	}
@@ -73,7 +74,7 @@ func discoverADs(ctx context.Context, client identity.IdentityClient, tenancyID 
 	return ads, nil
 }
 
-func discoverFaultDomains(ctx context.Context, client identity.IdentityClient, tenancyID, adName string) ([]string, error) {
+func discoverFaultDomains(ctx context.Context, client IdentityAPI, tenancyID, adName string) ([]string, error) {
 	req := identity.ListFaultDomainsRequest{
 		CompartmentId:      &tenancyID,
 		AvailabilityDomain: &adName,
@@ -91,7 +92,7 @@ func discoverFaultDomains(ctx context.Context, client identity.IdentityClient, t
 	return fds, nil
 }
 
-func discoverShapes(ctx context.Context, client core.ComputeClient, compartmentID string) ([]Shape, error) {
+func discoverShapes(ctx context.Context, client ComputeAPI, compartmentID string) ([]Shape, error) {
 	req := core.ListShapesRequest{
 		CompartmentId: &compartmentID,
 	}
@@ -141,7 +142,7 @@ func discoverShapes(ctx context.Context, client core.ComputeClient, compartmentI
 	return shapes, nil
 }
 
-func discoverImages(ctx context.Context, client core.ComputeClient, compartmentID string) ([]Image, error) {
+func discoverImages(ctx context.Context, client ComputeAPI, compartmentID string) ([]Image, error) {
 	osList := []string{"Oracle Linux", "Canonical Ubuntu", "CentOS", "Windows"}
 	var images []Image
 
@@ -193,7 +194,7 @@ func discoverImages(ctx context.Context, client core.ComputeClient, compartmentI
 	return images, nil
 }
 
-func discoverVCNs(ctx context.Context, client core.VirtualNetworkClient, compartmentID string) ([]VCN, error) {
+func discoverVCNs(ctx context.Context, client VirtualNetworkAPI, compartmentID string) ([]VCN, error) {
 	req := core.ListVcnsRequest{
 		CompartmentId: &compartmentID,
 	}
@@ -265,7 +266,7 @@ func discoverVCNs(ctx context.Context, client core.VirtualNetworkClient, compart
 	return vcns, nil
 }
 
-func discoverSubnets(ctx context.Context, client core.VirtualNetworkClient, compartmentID, vcnID string) ([]Subnet, error) {
+func discoverSubnets(ctx context.Context, client VirtualNetworkAPI, compartmentID, vcnID string) ([]Subnet, error) {
 	req := core.ListSubnetsRequest{
 		CompartmentId: &compartmentID,
 		VcnId:         &vcnID,
@@ -290,7 +291,7 @@ func discoverSubnets(ctx context.Context, client core.VirtualNetworkClient, comp
 	return subnets, nil
 }
 
-func discoverSecurityLists(ctx context.Context, client core.VirtualNetworkClient, compartmentID, vcnID string) ([]SecurityList, error) {
+func discoverSecurityLists(ctx context.Context, client VirtualNetworkAPI, compartmentID, vcnID string) ([]SecurityList, error) {
 	req := core.ListSecurityListsRequest{
 		CompartmentId: &compartmentID,
 		VcnId:         &vcnID,
@@ -354,7 +355,7 @@ func discoverSecurityLists(ctx context.Context, client core.VirtualNetworkClient
 	return securityLists, nil
 }
 
-func discoverRouteTables(ctx context.Context, client core.VirtualNetworkClient, compartmentID, vcnID string) ([]RouteTable, error) {
+func discoverRouteTables(ctx context.Context, client VirtualNetworkAPI, compartmentID, vcnID string) ([]RouteTable, error) {
 	req := core.ListRouteTablesRequest{
 		CompartmentId: &compartmentID,
 		VcnId:         &vcnID,
@@ -394,7 +395,7 @@ func discoverRouteTables(ctx context.Context, client core.VirtualNetworkClient, 
 	return routeTables, nil
 }
 
-func discoverInternetGateway(ctx context.Context, client core.VirtualNetworkClient, compartmentID, vcnID string) (*InternetGateway, error) {
+func discoverInternetGateway(ctx context.Context, client VirtualNetworkAPI, compartmentID, vcnID string) (*InternetGateway, error) {
 	req := core.ListInternetGatewaysRequest{
 		CompartmentId: &compartmentID,
 		VcnId:         &vcnID,
@@ -417,7 +418,7 @@ func discoverInternetGateway(ctx context.Context, client core.VirtualNetworkClie
 	}, nil
 }
 
-func discoverNATGateway(ctx context.Context, client core.VirtualNetworkClient, compartmentID, vcnID string) (*NATGateway, error) {
+func discoverNATGateway(ctx context.Context, client VirtualNetworkAPI, compartmentID, vcnID string) (*NATGateway, error) {
 	req := core.ListNatGatewaysRequest{
 		CompartmentId: &compartmentID,
 		VcnId:         &vcnID,
@@ -441,7 +442,7 @@ func discoverNATGateway(ctx context.Context, client core.VirtualNetworkClient, c
 	}, nil
 }
 
-func discoverBlockVolumes(ctx context.Context, client core.BlockstorageClient, compartmentID string) ([]BlockVolume, error) {
+func discoverBlockVolumes(ctx context.Context, client BlockstorageAPI, compartmentID string) ([]BlockVolume, error) {
 	req := core.ListVolumesRequest{
 		CompartmentId: &compartmentID,
 	}
@@ -479,7 +480,7 @@ func discoverBlockVolumes(ctx context.Context, client core.BlockstorageClient, c
 	return volumes, nil
 }
 
-func discoverLimits(ctx context.Context, client lim.LimitsClient, tenancyID string) ([]ServiceLimit, error) {
+func discoverLimits(ctx context.Context, client LimitsAPI, tenancyID string) ([]ServiceLimit, error) {
 	computeServices := []string{"compute", "compute-core"}
 	var limits []ServiceLimit
 
@@ -517,7 +518,7 @@ func discoverLimits(ctx context.Context, client lim.LimitsClient, tenancyID stri
 // "Oracle-Linux-8.10-aarch64-2025.11.20-0-OKE-1.31.10-1345"
 var okeVersionRe = regexp.MustCompile(`OKE-(\d+\.\d+\.\d+)`)
 
-func discoverOKEImages(ctx context.Context, client containerengine.ContainerEngineClient, compartmentID string) ([]OKEImage, error) {
+func discoverOKEImages(ctx context.Context, client ContainerEngineAPI, compartmentID string) ([]OKEImage, error) {
 	optionID := "all"
 	req := containerengine.GetNodePoolOptionsRequest{
 		NodePoolOptionId: &optionID,
@@ -565,7 +566,7 @@ func discoverOKEImages(ctx context.Context, client containerengine.ContainerEngi
 	return images, nil
 }
 
-func discoverTenancy(ctx context.Context, client identity.IdentityClient, tenancyID string) (TenancyInfo, error) {
+func discoverTenancy(ctx context.Context, client IdentityAPI, tenancyID string) (TenancyInfo, error) {
 	req := identity.GetTenancyRequest{
 		TenancyId: &tenancyID,
 	}

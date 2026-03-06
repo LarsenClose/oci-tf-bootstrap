@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -823,4 +824,160 @@ func TestWriteLocalsWithCompartment(t *testing.T) {
 	if strings.Contains(contentStr, "Using tenancy root") {
 		t.Error("locals.tf should not contain 'Using tenancy root' when compartment differs from tenancy")
 	}
+}
+
+// Integration tests: validate generated TF with tofu
+
+func TestTerraformValidation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping tofu validation in short mode")
+	}
+
+	tofuPath, err := exec.LookPath("tofu")
+	if err != nil {
+		t.Skip("tofu not found, skipping terraform validation")
+	}
+
+	tmpDir, err := os.MkdirTemp("", "oci-tf-bootstrap-validate-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Comprehensive result with all resource types
+	result := &discovery.Result{
+		Tenancy: discovery.TenancyInfo{
+			ID:         "ocid1.tenancy.oc1..test",
+			Name:       "test-tenancy",
+			HomeRegion: "us-phoenix-1",
+		},
+		CompartmentID: "ocid1.compartment.oc1..test",
+		AvailabilityDomains: []discovery.AvailabilityDomain{
+			{Name: "TEST:AD-1", ID: "ad-1"},
+			{Name: "TEST:AD-2", ID: "ad-2"},
+		},
+		Compartments: []discovery.Compartment{
+			{ID: "ocid1.compartment.oc1..net", Name: "network", ParentID: "ocid1.tenancy.oc1..test"},
+			{ID: "ocid1.compartment.oc1..comp", Name: "compute", ParentID: "ocid1.tenancy.oc1..test"},
+		},
+		Shapes: []discovery.Shape{
+			{Name: "VM.Standard.A1.Flex", IsFlexible: true, OCPUs: 4, MaxOCPUs: 80, MemoryGB: 24, MaxMemoryGB: 512},
+			{Name: "VM.Standard.E2.1.Micro", OCPUs: 1, MemoryGB: 1},
+		},
+		Images: []discovery.Image{
+			{OS: "Canonical Ubuntu", OSVersion: "24.04", ID: "ocid1.image.oc1..ubuntu"},
+			{OS: "Oracle Linux", OSVersion: "9", ID: "ocid1.image.oc1..oraclelinux"},
+		},
+		VCNs: []discovery.VCN{
+			{
+				ID: "ocid1.vcn.oc1..test", DisplayName: "test-vcn", CIDRBlock: "10.0.0.0/16", CompartmentID: "ocid1.compartment.oc1..test",
+				Subnets: []discovery.Subnet{
+					{ID: "ocid1.subnet.oc1..pub", DisplayName: "public-subnet", CIDRBlock: "10.0.0.0/24", IsPublic: true, DNSLabel: "pub"},
+					{ID: "ocid1.subnet.oc1..priv", DisplayName: "private-subnet", CIDRBlock: "10.0.1.0/24", IsPublic: false, DNSLabel: "priv"},
+				},
+				SecurityLists: []discovery.SecurityList{
+					{ID: "ocid1.seclist.oc1..default", DisplayName: "Default Security List"},
+				},
+				RouteTables: []discovery.RouteTable{
+					{ID: "ocid1.routetable.oc1..default", DisplayName: "Default Route Table"},
+				},
+				InternetGateway: &discovery.InternetGateway{ID: "ocid1.igw.oc1..test", DisplayName: "igw", IsEnabled: true},
+				NATGateway:      &discovery.NATGateway{ID: "ocid1.nat.oc1..test", DisplayName: "nat", PublicIP: "1.2.3.4"},
+			},
+		},
+		OKEImages: []discovery.OKEImage{
+			{ID: "ocid1.image.oc1..oke-arm", SourceName: "Oracle-Linux-8.10-aarch64-2025.11.20-0-OKE-1.31.10-1345", KubernetesVersion: "1.31.10", Architecture: "aarch64"},
+			{ID: "ocid1.image.oc1..oke-x86", SourceName: "Oracle-Linux-8.10-2025.11.20-0-OKE-1.31.10-1345", KubernetesVersion: "1.31.10", Architecture: "x86_64"},
+		},
+	}
+
+	opts := Options{AlwaysFree: false}
+	if err := OutputTerraform(result, tmpDir, opts); err != nil {
+		t.Fatalf("OutputTerraform failed: %v", err)
+	}
+
+	// Run tofu init
+	initCmd := exec.Command(tofuPath, "init")
+	initCmd.Dir = tmpDir
+	initOut, err := initCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("tofu init failed: %v\n%s", err, string(initOut))
+	}
+
+	// Run tofu validate
+	valCmd := exec.Command(tofuPath, "validate")
+	valCmd.Dir = tmpDir
+	valOut, err := valCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("tofu validate failed: %v\n%s", err, string(valOut))
+	}
+
+	t.Logf("tofu validate passed: %s", string(valOut))
+}
+
+func TestTerraformValidationAlwaysFree(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping tofu validation in short mode")
+	}
+
+	tofuPath, err := exec.LookPath("tofu")
+	if err != nil {
+		t.Skip("tofu not found, skipping terraform validation")
+	}
+
+	tmpDir, err := os.MkdirTemp("", "oci-tf-bootstrap-validate-af-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Always-free result with no VCNs (triggers network.tf generation)
+	result := &discovery.Result{
+		Tenancy: discovery.TenancyInfo{
+			ID:         "ocid1.tenancy.oc1..test",
+			Name:       "test-tenancy",
+			HomeRegion: "us-phoenix-1",
+		},
+		CompartmentID: "ocid1.tenancy.oc1..test",
+		AvailabilityDomains: []discovery.AvailabilityDomain{
+			{Name: "TEST:AD-1", ID: "ad-1"},
+		},
+		Shapes: []discovery.Shape{
+			{Name: "VM.Standard.A1.Flex", IsFlexible: true, OCPUs: 4, MaxOCPUs: 80, MemoryGB: 24, MaxMemoryGB: 512},
+			{Name: "VM.Standard.E2.1.Micro", OCPUs: 1, MemoryGB: 1},
+		},
+		Images: []discovery.Image{
+			{OS: "Canonical Ubuntu", OSVersion: "24.04 Minimal aarch64", ID: "ocid1.image.oc1..ubuntu-arm"},
+		},
+		VCNs: []discovery.VCN{}, // No existing VCNs triggers network.tf generation
+	}
+
+	opts := Options{AlwaysFree: true}
+	if err := OutputTerraform(result, tmpDir, opts); err != nil {
+		t.Fatalf("OutputTerraform with AlwaysFree failed: %v", err)
+	}
+
+	// Verify network.tf was generated (no existing VCNs)
+	networkPath := filepath.Join(tmpDir, "network.tf")
+	if _, err := os.Stat(networkPath); os.IsNotExist(err) {
+		t.Fatal("expected network.tf to be generated when no VCNs exist")
+	}
+
+	// Run tofu init
+	initCmd := exec.Command(tofuPath, "init")
+	initCmd.Dir = tmpDir
+	initOut, err := initCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("tofu init failed: %v\n%s", err, string(initOut))
+	}
+
+	// Run tofu validate
+	valCmd := exec.Command(tofuPath, "validate")
+	valCmd.Dir = tmpDir
+	valOut, err := valCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("tofu validate failed: %v\n%s", err, string(valOut))
+	}
+
+	t.Logf("tofu validate (always-free) passed: %s", string(valOut))
 }

@@ -709,6 +709,9 @@ func TestOKEVersionRegex(t *testing.T) {
 		{"Oracle-Linux-8.10-aarch64-2025.11.20-0-OKE-1.31.10-1345", "1.31.10"},
 		{"Oracle-Linux-8.10-2025.11.20-0-OKE-1.30.5-900", "1.30.5"},
 		{"no-oke-version-here", ""},
+		{"Oracle-Linux-8.10-aarch64-2025.11.20-0-OKE-1.31.1-900", "1.31.1"},
+		{"Oracle-Linux-8.10-aarch64-2025.11.20-0-OKE-1.31.10-1345", "1.31.10"},
+		{"Oracle-Linux-8.10-2025.11.20-0-OKE-1.28.2-500", "1.28.2"},
 	}
 	for _, tt := range tests {
 		matches := okeVersionRe.FindStringSubmatch(tt.input)
@@ -719,6 +722,38 @@ func TestOKEVersionRegex(t *testing.T) {
 		if got != tt.expected {
 			t.Errorf("okeVersionRe(%q) = %q, want %q", tt.input, got, tt.expected)
 		}
+	}
+}
+
+func TestOKEVersionPrefixAmbiguity(t *testing.T) {
+	mock := &mockContainerEngineClient{
+		sources: []containerengine.NodeSourceOption{
+			containerengine.NodeSourceViaImageOption{
+				SourceName: strPtr("Oracle-Linux-8.10-aarch64-2025.11.20-0-OKE-1.31.1-900"),
+				ImageId:    strPtr("ocid1.image.oc1..v1311"),
+			},
+			containerengine.NodeSourceViaImageOption{
+				SourceName: strPtr("Oracle-Linux-8.10-aarch64-2025.11.20-0-OKE-1.31.10-1345"),
+				ImageId:    strPtr("ocid1.image.oc1..v13110"),
+			},
+		},
+	}
+
+	images, err := discoverOKEImages(context.Background(), mock, "comp-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(images) != 2 {
+		t.Fatalf("expected 2 images, got %d", len(images))
+	}
+	if images[0].KubernetesVersion != "1.31.1" {
+		t.Errorf("first image version: expected 1.31.1, got %s", images[0].KubernetesVersion)
+	}
+	if images[1].KubernetesVersion != "1.31.10" {
+		t.Errorf("second image version: expected 1.31.10, got %s", images[1].KubernetesVersion)
+	}
+	if images[0].KubernetesVersion == images[1].KubernetesVersion {
+		t.Error("version prefix ambiguity: 1.31.1 and 1.31.10 should be distinct")
 	}
 }
 

@@ -40,5 +40,10 @@ func OutputTerraform(result *discovery.Result, outputDir string, opts Options) e
 	if err := writeNetwork(result, outputDir, opts); err != nil {
 		return fmt.Errorf("network.tf: %w", err)
 	}
+	if len(result.OKEImages) > 0 {
+		if err := writeOKEExample(result, outputDir, opts); err != nil {
+			return fmt.Errorf("oke_example.tf: %w", err)
+		}
+	}
 	return nil
 }

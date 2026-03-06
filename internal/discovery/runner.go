@@ -92,7 +92,7 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 		fmt.Println("  → Tenancy Details")
 		tenancy, err := discoverTenancy(gctx, clients.Identity, ctx.TenancyID)
 		if err != nil {
-			return fmt.Errorf("tenancy: %w", err)
+			return classifyOCIError("tenancy details", err)
 		}
 		mu.Lock()
 		result.Tenancy = tenancy
@@ -105,7 +105,7 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 		fmt.Println("  → Compartments")
 		comps, err := discoverCompartments(gctx, clients.Identity, ctx.TenancyID)
 		if err != nil {
-			return fmt.Errorf("compartments: %w", err)
+			return classifyOCIError("compartments", err)
 		}
 		mu.Lock()
 		result.Compartments = comps
@@ -117,7 +117,7 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 		fmt.Println("  → Availability Domains")
 		ads, err := discoverADs(gctx, clients.Identity, ctx.TenancyID)
 		if err != nil {
-			return fmt.Errorf("availability domains: %w", err)
+			return classifyOCIError("availability domains", err)
 		}
 		mu.Lock()
 		result.AvailabilityDomains = ads
@@ -129,7 +129,7 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 		fmt.Println("  → Shapes")
 		shapes, err := discoverShapes(gctx, clients.Compute, ctx.CompartmentID)
 		if err != nil {
-			return fmt.Errorf("shapes: %w", err)
+			return classifyOCIError("shapes", err)
 		}
 		mu.Lock()
 		result.Shapes = shapes
@@ -141,7 +141,7 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 		fmt.Println("  → Images")
 		images, err := discoverImages(gctx, clients.Compute, ctx.CompartmentID)
 		if err != nil {
-			return fmt.Errorf("images: %w", err)
+			return classifyOCIError("images", err)
 		}
 		mu.Lock()
 		result.Images = images
@@ -153,7 +153,7 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 		fmt.Println("  → VCNs")
 		vcns, err := discoverVCNs(gctx, clients.VirtualNetwork, ctx.CompartmentID)
 		if err != nil {
-			fmt.Printf("    ⚠ VCN discovery failed (non-fatal): %v\n", err)
+			fmt.Printf("    ⚠ %v\n", classifyOCIError("VCN discovery", err))
 			return nil
 		}
 		mu.Lock()
@@ -166,7 +166,7 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 		fmt.Println("  → Service Limits")
 		limits, err := discoverLimits(gctx, clients.Limits, ctx.TenancyID)
 		if err != nil {
-			fmt.Printf("    ⚠ Limits discovery failed (non-fatal): %v\n", err)
+			fmt.Printf("    ⚠ %v\n", classifyOCIError("service limits", err))
 			return nil
 		}
 		mu.Lock()
@@ -179,7 +179,7 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 		fmt.Println("  → Block Volumes")
 		volumes, err := discoverBlockVolumes(gctx, clients.Blockstorage, ctx.CompartmentID)
 		if err != nil {
-			fmt.Printf("    ⚠ Block volume discovery failed (non-fatal): %v\n", err)
+			fmt.Printf("    ⚠ %v\n", classifyOCIError("block volume discovery", err))
 			return nil
 		}
 		mu.Lock()
@@ -194,7 +194,7 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 			fmt.Println("  → OKE Node Images")
 			okeImages, err := discoverOKEImages(gctx, clients.ContainerEngine, ctx.CompartmentID)
 			if err != nil {
-				fmt.Printf("    ⚠ OKE image discovery failed (non-fatal): %v\n", err)
+				fmt.Printf("    ⚠ %v\n", classifyOCIError("OKE image discovery", err))
 				return nil
 			}
 			mu.Lock()

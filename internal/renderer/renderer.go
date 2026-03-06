@@ -9,6 +9,9 @@ import (
 	"github.com/larsenclose/oci-tf-bootstrap/internal/discovery"
 )
 
+// FormatVersion tracks the output format for downstream consumers.
+const FormatVersion = "1.0.0"
+
 // Options configures terraform output generation
 type Options struct {
 	AlwaysFree bool

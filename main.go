@@ -83,6 +83,7 @@ var (
 	jsonOut     = flag.Bool("json", false, "Output raw discovery as JSON instead of TF")
 	alwaysFree  = flag.Bool("always-free", false, "Filter output to always-free tier eligible resources only")
 	oke         = flag.Bool("oke", false, "Include OKE (Oracle Kubernetes Engine) node image discovery")
+	dryRun      = flag.Bool("dry-run", false, "Show what would be generated without writing files")
 	showVersion = flag.Bool("version", false, "Print version information and exit")
 )
 
@@ -150,6 +151,9 @@ func main() {
 	if *alwaysFree {
 		fmt.Printf("  Mode:       always-free tier\n")
 	}
+	if *dryRun {
+		fmt.Printf("  Dry run:    yes (no files will be written)\n")
+	}
 
 	// Check if config file exists and provide helpful error message
 	if _, err := os.Stat(ociConfigPath); os.IsNotExist(err) {
@@ -186,6 +190,47 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Failed to output JSON: %v\n", err)
 			os.Exit(1)
 		}
+	} else if *dryRun {
+		tmpDir, err := os.MkdirTemp("", "oci-tf-bootstrap-dryrun-*")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to create temp directory: %v\n", err)
+			os.Exit(1)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		opts := renderer.Options{AlwaysFree: *alwaysFree}
+		if err := renderer.OutputTerraform(result, tmpDir, opts); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to render terraform: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("\n--- Dry Run Summary ---")
+		fmt.Printf("Would generate files in: %s\n\n", *outputDir)
+
+		entries, err := os.ReadDir(tmpDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to read temp directory: %v\n", err)
+			os.Exit(1)
+		}
+		for _, entry := range entries {
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			fmt.Printf("  %s (%d bytes)\n", entry.Name(), info.Size())
+		}
+
+		fmt.Printf("\nDiscovered resources:\n")
+		fmt.Printf("  Compartments:         %d\n", len(result.Compartments))
+		fmt.Printf("  Availability Domains: %d\n", len(result.AvailabilityDomains))
+		fmt.Printf("  Shapes:               %d\n", len(result.Shapes))
+		fmt.Printf("  Images:               %d\n", len(result.Images))
+		fmt.Printf("  VCNs:                 %d\n", len(result.VCNs))
+		fmt.Printf("  Block Volumes:        %d\n", len(result.BlockVolumes))
+		if len(result.OKEImages) > 0 {
+			fmt.Printf("  OKE Node Images:      %d\n", len(result.OKEImages))
+		}
+		fmt.Printf("  Service Limits:       %d\n", len(result.Limits))
 	} else {
 		opts := renderer.Options{
 			AlwaysFree: *alwaysFree,

@@ -199,7 +199,8 @@ func main() {
 		defer os.RemoveAll(tmpDir)
 
 		opts := renderer.Options{AlwaysFree: *alwaysFree}
-		if err := renderer.OutputTerraform(result, tmpDir, opts); err != nil {
+		err = renderer.OutputTerraform(result, tmpDir, opts)
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to render terraform: %v\n", err)
 			os.Exit(1)
 		}

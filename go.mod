@@ -1,6 +1,6 @@
 module github.com/larsenclose/oci-tf-bootstrap
 
-go 1.24.13
+go 1.26.1
 
 require (
 	github.com/oracle/oci-go-sdk/v65 v65.105.2

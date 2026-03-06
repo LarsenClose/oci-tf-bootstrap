@@ -13,7 +13,6 @@ import (
 	lim "github.com/oracle/oci-go-sdk/v65/limits"
 )
 
-
 func safeString(s *string) string {
 	if s == nil {
 		return ""

@@ -14,22 +14,22 @@ import (
 
 // --- Mock helpers ---
 
-func strPtr(s string) *string { return &s }
-func boolPtr(b bool) *bool    { return &b }
-func intPtr(i int64) *int64   { return &i }
+func strPtr(s string) *string   { return &s }
+func boolPtr(b bool) *bool      { return &b }
+func intPtr(i int64) *int64     { return &i }
 func f32Ptr(f float32) *float32 { return &f }
 
 // --- Mock Identity Client ---
 
 type mockIdentityClient struct {
-	compartments    []identity.Compartment
-	compartmentErr  error
-	ads             []identity.AvailabilityDomain
-	adErr           error
-	faultDomains    []identity.FaultDomain
-	faultDomainErr  error
-	tenancy         identity.Tenancy
-	tenancyErr      error
+	compartments   []identity.Compartment
+	compartmentErr error
+	ads            []identity.AvailabilityDomain
+	adErr          error
+	faultDomains   []identity.FaultDomain
+	faultDomainErr error
+	tenancy        identity.Tenancy
+	tenancyErr     error
 }
 
 func (m *mockIdentityClient) ListCompartments(_ context.Context, _ identity.ListCompartmentsRequest) (identity.ListCompartmentsResponse, error) {
@@ -98,18 +98,18 @@ func (m *mockComputeClient) ListImages(_ context.Context, _ core.ListImagesReque
 // --- Mock VirtualNetwork Client ---
 
 type mockVirtualNetworkClient struct {
-	vcns            []core.Vcn
-	vcnErr          error
-	subnets         []core.Subnet
-	subnetErr       error
-	securityLists   []core.SecurityList
-	secListErr      error
-	routeTables     []core.RouteTable
-	routeTableErr   error
+	vcns             []core.Vcn
+	vcnErr           error
+	subnets          []core.Subnet
+	subnetErr        error
+	securityLists    []core.SecurityList
+	secListErr       error
+	routeTables      []core.RouteTable
+	routeTableErr    error
 	internetGateways []core.InternetGateway
-	igwErr          error
-	natGateways     []core.NatGateway
-	natErr          error
+	igwErr           error
+	natGateways      []core.NatGateway
+	natErr           error
 }
 
 func (m *mockVirtualNetworkClient) ListVcns(_ context.Context, _ core.ListVcnsRequest) (core.ListVcnsResponse, error) {
@@ -201,8 +201,8 @@ func (m *mockLimitsClient) ListLimitValues(_ context.Context, _ lim.ListLimitVal
 // --- Mock ContainerEngine Client ---
 
 type mockContainerEngineClient struct {
-	sources  []containerengine.NodeSourceOption
-	ceErr    error
+	sources []containerengine.NodeSourceOption
+	ceErr   error
 }
 
 func (m *mockContainerEngineClient) GetNodePoolOptions(_ context.Context, _ containerengine.GetNodePoolOptionsRequest) (containerengine.GetNodePoolOptionsResponse, error) {
@@ -427,11 +427,11 @@ func TestDiscoverVCNs(t *testing.T) {
 			},
 			subnets: []core.Subnet{
 				{
-					Id:                       strPtr("sub-1"),
-					DisplayName:              strPtr("public"),
-					CidrBlock:                strPtr("10.0.0.0/24"),
-					ProhibitPublicIpOnVnic:   boolPtr(false),
-					DnsLabel:                 strPtr("pub"),
+					Id:                     strPtr("sub-1"),
+					DisplayName:            strPtr("public"),
+					CidrBlock:              strPtr("10.0.0.0/24"),
+					ProhibitPublicIpOnVnic: boolPtr(false),
+					DnsLabel:               strPtr("pub"),
 				},
 			},
 			securityLists: []core.SecurityList{
@@ -560,8 +560,8 @@ func TestDiscoverLimits(t *testing.T) {
 		mock := &mockLimitsClient{
 			limitValues: []lim.LimitValueSummary{
 				{Name: strPtr("vm-standard-a1-flex-count"), Value: intPtr(5), ScopeType: lim.LimitValueSummaryScopeTypeAd},
-				{Name: strPtr("vm-standard-e4-flex-count"), Value: intPtr(0)},  // zero, should be filtered
-				{Name: strPtr("bm-count"), Value: nil},                           // nil, should be filtered
+				{Name: strPtr("vm-standard-e4-flex-count"), Value: intPtr(0)}, // zero, should be filtered
+				{Name: strPtr("bm-count"), Value: nil},                        // nil, should be filtered
 				{Name: strPtr("with-ad"), Value: intPtr(2), ScopeType: lim.LimitValueSummaryScopeTypeAd, AvailabilityDomain: strPtr("AD-1")},
 			},
 		}

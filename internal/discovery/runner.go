@@ -13,6 +13,18 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// Clients holds the OCI API clients used during discovery.
+// Callers can inject mock implementations for testing.
+type Clients struct {
+	Identity        IdentityAPI
+	Compute         ComputeAPI
+	VirtualNetwork  VirtualNetworkAPI
+	Blockstorage    BlockstorageAPI
+	Limits          LimitsAPI
+	ContainerEngine ContainerEngineAPI
+}
+
+// Run creates concrete OCI clients from the config provider and delegates to RunWithClients.
 func Run(ctx *Context) (*Result, error) {
 	configProvider, err := common.ConfigurationProviderFromFileWithProfile(ctx.ConfigPath, ctx.Profile, "")
 	if err != nil {
@@ -49,6 +61,21 @@ func Run(ctx *Context) (*Result, error) {
 		return nil, fmt.Errorf("containerengine client: %w", err)
 	}
 
+	clients := &Clients{
+		Identity:        identityClient,
+		Compute:         computeClient,
+		VirtualNetwork:  networkClient,
+		Blockstorage:    blockstorageClient,
+		Limits:          limitsClient,
+		ContainerEngine: ceClient,
+	}
+
+	return RunWithClients(ctx, clients)
+}
+
+// RunWithClients runs the full discovery pipeline using the provided clients.
+// This enables mock-based testing of the discovery orchestration.
+func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 	result := &Result{
 		CompartmentID: ctx.CompartmentID,
 		Tenancy: TenancyInfo{
@@ -63,7 +90,7 @@ func Run(ctx *Context) (*Result, error) {
 
 	g.Go(func() error {
 		fmt.Println("  → Tenancy Details")
-		tenancy, err := discoverTenancy(gctx, identityClient, ctx.TenancyID)
+		tenancy, err := discoverTenancy(gctx, clients.Identity, ctx.TenancyID)
 		if err != nil {
 			return fmt.Errorf("tenancy: %w", err)
 		}
@@ -76,7 +103,7 @@ func Run(ctx *Context) (*Result, error) {
 
 	g.Go(func() error {
 		fmt.Println("  → Compartments")
-		comps, err := discoverCompartments(gctx, identityClient, ctx.TenancyID)
+		comps, err := discoverCompartments(gctx, clients.Identity, ctx.TenancyID)
 		if err != nil {
 			return fmt.Errorf("compartments: %w", err)
 		}
@@ -88,7 +115,7 @@ func Run(ctx *Context) (*Result, error) {
 
 	g.Go(func() error {
 		fmt.Println("  → Availability Domains")
-		ads, err := discoverADs(gctx, identityClient, ctx.TenancyID)
+		ads, err := discoverADs(gctx, clients.Identity, ctx.TenancyID)
 		if err != nil {
 			return fmt.Errorf("availability domains: %w", err)
 		}
@@ -100,7 +127,7 @@ func Run(ctx *Context) (*Result, error) {
 
 	g.Go(func() error {
 		fmt.Println("  → Shapes")
-		shapes, err := discoverShapes(gctx, computeClient, ctx.CompartmentID)
+		shapes, err := discoverShapes(gctx, clients.Compute, ctx.CompartmentID)
 		if err != nil {
 			return fmt.Errorf("shapes: %w", err)
 		}
@@ -112,7 +139,7 @@ func Run(ctx *Context) (*Result, error) {
 
 	g.Go(func() error {
 		fmt.Println("  → Images")
-		images, err := discoverImages(gctx, computeClient, ctx.CompartmentID)
+		images, err := discoverImages(gctx, clients.Compute, ctx.CompartmentID)
 		if err != nil {
 			return fmt.Errorf("images: %w", err)
 		}
@@ -124,7 +151,7 @@ func Run(ctx *Context) (*Result, error) {
 
 	g.Go(func() error {
 		fmt.Println("  → VCNs")
-		vcns, err := discoverVCNs(gctx, networkClient, ctx.CompartmentID)
+		vcns, err := discoverVCNs(gctx, clients.VirtualNetwork, ctx.CompartmentID)
 		if err != nil {
 			fmt.Printf("    ⚠ VCN discovery failed (non-fatal): %v\n", err)
 			return nil
@@ -137,7 +164,7 @@ func Run(ctx *Context) (*Result, error) {
 
 	g.Go(func() error {
 		fmt.Println("  → Service Limits")
-		limits, err := discoverLimits(gctx, limitsClient, ctx.TenancyID)
+		limits, err := discoverLimits(gctx, clients.Limits, ctx.TenancyID)
 		if err != nil {
 			fmt.Printf("    ⚠ Limits discovery failed (non-fatal): %v\n", err)
 			return nil
@@ -150,7 +177,7 @@ func Run(ctx *Context) (*Result, error) {
 
 	g.Go(func() error {
 		fmt.Println("  → Block Volumes")
-		volumes, err := discoverBlockVolumes(gctx, blockstorageClient, ctx.CompartmentID)
+		volumes, err := discoverBlockVolumes(gctx, clients.Blockstorage, ctx.CompartmentID)
 		if err != nil {
 			fmt.Printf("    ⚠ Block volume discovery failed (non-fatal): %v\n", err)
 			return nil
@@ -165,7 +192,7 @@ func Run(ctx *Context) (*Result, error) {
 	if ctx.AlwaysFree || ctx.OKE {
 		g.Go(func() error {
 			fmt.Println("  → OKE Node Images")
-			okeImages, err := discoverOKEImages(gctx, ceClient, ctx.CompartmentID)
+			okeImages, err := discoverOKEImages(gctx, clients.ContainerEngine, ctx.CompartmentID)
 			if err != nil {
 				fmt.Printf("    ⚠ OKE image discovery failed (non-fatal): %v\n", err)
 				return nil

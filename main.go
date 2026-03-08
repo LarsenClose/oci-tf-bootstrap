@@ -141,107 +141,115 @@ func main() {
 		os.Exit(0)
 	}
 
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	ociConfigPath, _ := resolveConfigPath()
 	ociProfile := resolveProfile()
 
-	fmt.Printf("oci-tf-bootstrap\n")
-	fmt.Printf("  Profile:    %s\n", ociProfile)
-	fmt.Printf("  Config:     %s\n", ociConfigPath)
-	fmt.Printf("  Output:     %s\n", *outputDir)
+	// When --json, diagnostics go to stderr so stdout is pure JSON
+	diag := os.Stdout
+	if *jsonOut {
+		diag = os.Stderr
+	}
+
+	fmt.Fprintf(diag, "oci-tf-bootstrap\n")
+	fmt.Fprintf(diag, "  Profile:    %s\n", ociProfile)
+	fmt.Fprintf(diag, "  Config:     %s\n", ociConfigPath)
+	fmt.Fprintf(diag, "  Output:     %s\n", *outputDir)
 	if *alwaysFree {
-		fmt.Printf("  Mode:       always-free tier\n")
+		fmt.Fprintf(diag, "  Mode:       always-free tier\n")
 	}
 	if *dryRun {
-		fmt.Printf("  Dry run:    yes (no files will be written)\n")
+		fmt.Fprintf(diag, "  Dry run:    yes (no files will be written)\n")
 	}
 
 	// Check if config file exists and provide helpful error message
 	if _, err := os.Stat(ociConfigPath); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "\nError: OCI config file not found at %s\n\n", ociConfigPath)
 		printSetupHelp(ociConfigPath)
-		os.Exit(1)
+		return fmt.Errorf("OCI config file not found at %s", ociConfigPath)
 	}
 
 	ctx, err := discovery.NewContext(ociProfile, ociConfigPath, *region, *compartment, *alwaysFree, *oke)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize OCI context: %v\n", err)
 		if strings.Contains(err.Error(), "can not read") || strings.Contains(err.Error(), "configuration") {
-			fmt.Fprintln(os.Stderr)
 			printSetupHelp(ociConfigPath)
 		}
-		os.Exit(1)
+		return fmt.Errorf("failed to initialize OCI context: %w", err)
 	}
 
-	fmt.Printf("  Tenancy:    %s\n", ctx.TenancyID)
-	fmt.Printf("  Region:     %s\n", ctx.Region)
+	ctx.ProgressWriter = diag
+
+	fmt.Fprintf(diag, "  Tenancy:    %s\n", ctx.TenancyID)
+	fmt.Fprintf(diag, "  Region:     %s\n", ctx.Region)
 	if *compartment != "" {
-		fmt.Printf("  Compartment: %s\n", *compartment)
+		fmt.Fprintf(diag, "  Compartment: %s\n", *compartment)
 	}
-	fmt.Println()
+	fmt.Fprintln(diag)
 
 	result, err := discovery.Run(ctx)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Discovery failed: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("discovery failed: %w", err)
 	}
 
 	if *jsonOut {
 		if err := renderer.OutputJSON(result, os.Stdout); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to output JSON: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("failed to output JSON: %w", err)
 		}
 	} else if *dryRun {
 		tmpDir, err := os.MkdirTemp("", "oci-tf-bootstrap-dryrun-*")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to create temp directory: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("failed to create temp directory: %w", err)
 		}
 		defer os.RemoveAll(tmpDir)
 
 		opts := renderer.Options{AlwaysFree: *alwaysFree}
 		err = renderer.OutputTerraform(result, tmpDir, opts)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to render terraform: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("failed to render terraform: %w", err)
 		}
 
-		fmt.Println("\n--- Dry Run Summary ---")
-		fmt.Printf("Would generate files in: %s\n\n", *outputDir)
+		fmt.Fprintln(diag, "\n--- Dry Run Summary ---")
+		fmt.Fprintf(diag, "Would generate files in: %s\n\n", *outputDir)
 
 		entries, err := os.ReadDir(tmpDir)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to read temp directory: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("failed to read temp directory: %w", err)
 		}
 		for _, entry := range entries {
 			info, err := entry.Info()
 			if err != nil {
 				continue
 			}
-			fmt.Printf("  %s (%d bytes)\n", entry.Name(), info.Size())
+			fmt.Fprintf(diag, "  %s (%d bytes)\n", entry.Name(), info.Size())
 		}
 
-		fmt.Printf("\nDiscovered resources:\n")
-		fmt.Printf("  Compartments:         %d\n", len(result.Compartments))
-		fmt.Printf("  Availability Domains: %d\n", len(result.AvailabilityDomains))
-		fmt.Printf("  Shapes:               %d\n", len(result.Shapes))
-		fmt.Printf("  Images:               %d\n", len(result.Images))
-		fmt.Printf("  VCNs:                 %d\n", len(result.VCNs))
-		fmt.Printf("  Block Volumes:        %d\n", len(result.BlockVolumes))
+		fmt.Fprintf(diag, "\nDiscovered resources:\n")
+		fmt.Fprintf(diag, "  Compartments:         %d\n", len(result.Compartments))
+		fmt.Fprintf(diag, "  Availability Domains: %d\n", len(result.AvailabilityDomains))
+		fmt.Fprintf(diag, "  Shapes:               %d\n", len(result.Shapes))
+		fmt.Fprintf(diag, "  Images:               %d\n", len(result.Images))
+		fmt.Fprintf(diag, "  VCNs:                 %d\n", len(result.VCNs))
+		fmt.Fprintf(diag, "  Block Volumes:        %d\n", len(result.BlockVolumes))
 		if len(result.OKEImages) > 0 {
-			fmt.Printf("  OKE Node Images:      %d\n", len(result.OKEImages))
+			fmt.Fprintf(diag, "  OKE Node Images:      %d\n", len(result.OKEImages))
 		}
-		fmt.Printf("  Service Limits:       %d\n", len(result.Limits))
+		fmt.Fprintf(diag, "  Service Limits:       %d\n", len(result.Limits))
 	} else {
 		opts := renderer.Options{
 			AlwaysFree: *alwaysFree,
 		}
 		if err := renderer.OutputTerraform(result, *outputDir, opts); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to render terraform: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("failed to render terraform: %w", err)
 		}
-		fmt.Printf("Generated terraform files in %s\n", *outputDir)
+		fmt.Fprintf(diag, "Generated terraform files in %s\n", *outputDir)
 	}
+
+	return nil
 }
 
 // printSetupHelp prints instructions for setting up OCI CLI configuration

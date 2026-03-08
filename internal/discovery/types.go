@@ -1,15 +1,18 @@
 package discovery
 
+import "io"
+
 type Context struct {
-	TenancyID     string
-	UserID        string
-	Region        string
-	Profile       string
-	ConfigPath    string // Full path to config file (e.g., ~/.oci/config)
-	ConfigDir     string // Directory containing config file (e.g., ~/.oci)
-	AlwaysFree    bool
-	OKE           bool   // Explicitly enable OKE image discovery
-	CompartmentID string // Target compartment (defaults to TenancyID for root)
+	TenancyID      string
+	UserID         string
+	Region         string
+	Profile        string
+	ConfigPath     string // Full path to config file (e.g., ~/.oci/config)
+	ConfigDir      string // Directory containing config file (e.g., ~/.oci)
+	AlwaysFree     bool
+	OKE            bool      // Explicitly enable OKE image discovery
+	CompartmentID  string    // Target compartment (defaults to TenancyID for root)
+	ProgressWriter io.Writer // Where to write progress/diagnostic output (default: os.Stdout)
 }
 
 type Result struct {

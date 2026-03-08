@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/oracle/oci-go-sdk/v65/common"
@@ -86,10 +87,15 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 	var mu sync.Mutex
 	g, gctx := errgroup.WithContext(context.Background())
 
-	fmt.Println("Discovering resources...")
+	w := ctx.ProgressWriter
+	if w == nil {
+		w = os.Stdout
+	}
+
+	fmt.Fprintln(w, "Discovering resources...")
 
 	g.Go(func() error {
-		fmt.Println("  → Tenancy Details")
+		fmt.Fprintln(w, "  → Tenancy Details")
 		tenancy, err := discoverTenancy(gctx, clients.Identity, ctx.TenancyID)
 		if err != nil {
 			return classifyOCIError("tenancy details", err)
@@ -102,7 +108,7 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 	})
 
 	g.Go(func() error {
-		fmt.Println("  → Compartments")
+		fmt.Fprintln(w, "  → Compartments")
 		comps, err := discoverCompartments(gctx, clients.Identity, ctx.TenancyID)
 		if err != nil {
 			return classifyOCIError("compartments", err)
@@ -114,7 +120,7 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 	})
 
 	g.Go(func() error {
-		fmt.Println("  → Availability Domains")
+		fmt.Fprintln(w, "  → Availability Domains")
 		ads, err := discoverADs(gctx, clients.Identity, ctx.TenancyID)
 		if err != nil {
 			return classifyOCIError("availability domains", err)
@@ -126,7 +132,7 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 	})
 
 	g.Go(func() error {
-		fmt.Println("  → Shapes")
+		fmt.Fprintln(w, "  → Shapes")
 		shapes, err := discoverShapes(gctx, clients.Compute, ctx.CompartmentID)
 		if err != nil {
 			return classifyOCIError("shapes", err)
@@ -138,7 +144,7 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 	})
 
 	g.Go(func() error {
-		fmt.Println("  → Images")
+		fmt.Fprintln(w, "  → Images")
 		images, err := discoverImages(gctx, clients.Compute, ctx.CompartmentID)
 		if err != nil {
 			return classifyOCIError("images", err)
@@ -150,10 +156,10 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 	})
 
 	g.Go(func() error {
-		fmt.Println("  → VCNs")
+		fmt.Fprintln(w, "  → VCNs")
 		vcns, err := discoverVCNs(gctx, clients.VirtualNetwork, ctx.CompartmentID)
 		if err != nil {
-			fmt.Printf("    ⚠ %v\n", classifyOCIError("VCN discovery", err))
+			fmt.Fprintf(w, "    ⚠ %v\n", classifyOCIError("VCN discovery", err))
 			return nil
 		}
 		mu.Lock()
@@ -163,10 +169,10 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 	})
 
 	g.Go(func() error {
-		fmt.Println("  → Service Limits")
+		fmt.Fprintln(w, "  → Service Limits")
 		limits, err := discoverLimits(gctx, clients.Limits, ctx.TenancyID)
 		if err != nil {
-			fmt.Printf("    ⚠ %v\n", classifyOCIError("service limits", err))
+			fmt.Fprintf(w, "    ⚠ %v\n", classifyOCIError("service limits", err))
 			return nil
 		}
 		mu.Lock()
@@ -176,10 +182,10 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 	})
 
 	g.Go(func() error {
-		fmt.Println("  → Block Volumes")
+		fmt.Fprintln(w, "  → Block Volumes")
 		volumes, err := discoverBlockVolumes(gctx, clients.Blockstorage, ctx.CompartmentID)
 		if err != nil {
-			fmt.Printf("    ⚠ %v\n", classifyOCIError("block volume discovery", err))
+			fmt.Fprintf(w, "    ⚠ %v\n", classifyOCIError("block volume discovery", err))
 			return nil
 		}
 		mu.Lock()
@@ -191,10 +197,10 @@ func RunWithClients(ctx *Context, clients *Clients) (*Result, error) {
 	// Discover OKE images when explicitly requested or in always-free mode
 	if ctx.AlwaysFree || ctx.OKE {
 		g.Go(func() error {
-			fmt.Println("  → OKE Node Images")
+			fmt.Fprintln(w, "  → OKE Node Images")
 			okeImages, err := discoverOKEImages(gctx, clients.ContainerEngine, ctx.CompartmentID)
 			if err != nil {
-				fmt.Printf("    ⚠ %v\n", classifyOCIError("OKE image discovery", err))
+				fmt.Fprintf(w, "    ⚠ %v\n", classifyOCIError("OKE image discovery", err))
 				return nil
 			}
 			mu.Lock()
